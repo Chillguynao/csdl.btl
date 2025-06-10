@@ -1,0 +1,34 @@
+body {
+
+ display: flex;
+
+margin: 0;
+
+font-family: Arial, sans-serif;
+
+}
+
+
+
+/* Sidebar giữ nguyên như cũ */
+
+.sidebar {
+ background-color: #e0f0ff;
+ width: 200px;
+ height: 100vh;
+ padding-top: 20px;
+ box-sizing: border-box;
+
+}
+
+
+
+/* Nội dung chính */
+
+.main-content {
+flex: 1;
+padding: 20px;
+overflow-y: auto;
+
+}
+

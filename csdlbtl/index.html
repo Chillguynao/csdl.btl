@@ -1,0 +1,153 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Quản lý cửa hàng nước hoa</title>
+    <link rel="stylesheet" href="style.css"> </head>
+<body>
+    <div class="sidebar">
+        <a href="#" class="active" data-section="customer">Khách hàng</a>
+        <a href="#" data-section="orders">Đơn hàng</a>
+        <a href="#" data-section="product">Sản phẩm</a>
+        <a href="#" data-section="employee">Nhân viên</a>
+        <a href="#" data-section="stats">Thống kê</a>
+    </div>
+    <div id="main-content" class="main-content">
+        <h2>Chọn một chức năng để hiện thị dữ liệu</h2>
+    </div>
+
+    <script>
+        window.onload = function () {
+            const links = document.querySelectorAll('.sidebar a');
+
+            links.forEach(link => {
+                link.addEventListener('click', (event) => {
+                    event.preventDefault();
+
+                    links.forEach(l => l.classList.remove('active'));
+                    link.classList.add('active');
+
+                    const section = link.dataset.section;
+                    if (section) {
+                        loadSection(section);
+                    }
+                });
+            });
+
+            // Tải mặc định "Khách hàng" khi trang được load
+            loadSection('customer');
+        };
+
+        async function loadSection(section) {
+            const content = document.getElementById('main-content');
+            content.innerHTML = ''; // Xóa nội dung cũ
+
+            if (section === 'customer') {
+                try {
+                    const res = await fetch('http://127.0.0.1:8000/customer/');
+                    const data = await res.json();
+
+                    let html = `
+                        <h2>Danh sách khách hàng</h2>
+                        <table border="1" cellpadding="5" cellspacing="0">
+                            <thead>
+                                <tr>
+                                    <th>ID</th>
+                                    <th>Mã KH</th>
+                                    <th>Tên</th>
+                                    <th>Email</th>
+                                    <th>Điện thoại</th>
+                                    <th>Địa chỉ</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                    `;
+                    data.forEach(cus => {
+                        html += `
+                                <tr>
+                                    <td>${cus.id}</td>
+                                    <td>${cus.ma_khach_hang}</td>
+                                    <td>${cus.ten}</td>
+                                    <td>${cus.email || ''}</td>
+                                    <td>${cus.so_dien_thoai || ''}</td>
+                                    <td>${cus.dia_chi || ''}</td>
+                                </tr>
+                        `;
+                    });
+                    html += `
+                            </tbody>
+                        </table>
+                    `;
+                    content.innerHTML = html;
+                } catch (error) {
+                    content.innerHTML = `<p style="color:red;">Không thể tải danh sách khách hàng. Vui lòng kiểm tra máy chủ!</p>`;
+                    console.error("Lỗi khi tải danh sách khách hàng:", error);
+                }
+            } else if (section === 'orders') {
+                const customerId = prompt("Nhập ID khách hàng để xem đơn hàng:");
+                if (!customerId) {
+                    content.innerHTML = `<h2>Đơn hàng</h2><p>Vui lòng nhập ID khách hàng để xem đơn hàng.</p>`;
+                    return;
+                }
+
+                try {
+                    const res = await fetch(`http://127.0.0.1:8000/customer/${customerId}/orders`);
+                    if (!res.ok) { // Kiểm tra nếu phản hồi không thành công (ví dụ: 404 Not Found)
+                        if (res.status === 404) {
+                            content.innerHTML = `<p style="color:orange;">Không tìm thấy đơn hàng nào cho khách hàng ID ${customerId}.</p>`;
+                        } else {
+                            throw new Error(`Lỗi HTTP: ${res.status}`);
+                        }
+                        return;
+                    }
+
+                    const data = await res.json();
+
+                    if (data.length === 0) {
+                        content.innerHTML = `<p>Không có đơn hàng nào cho khách hàng ID ${customerId}.</p>`;
+                        return;
+                    }
+
+                    let html = `
+                        <h2>Đơn hàng của khách hàng ID ${customerId}</h2>
+                        <table border="1" cellpadding="5" cellspacing="0">
+                            <thead>
+                                <tr>
+                                    <th>ID đơn hàng</th>
+                                    <th>Ngày đặt hàng</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                    `;
+
+                    data.forEach(order => {
+                        html += `
+                                <tr>
+                                    <td>${order.id}</td>
+                                    <td>${order.ngay_dat_hang}</td>
+                                </tr>
+                        `;
+                    });
+
+                    html += `
+                            </tbody>
+                        </table>
+                    `;
+                    content.innerHTML = html;
+                } catch (error) {
+                    content.innerHTML = `<p style="color:red;">Không thể tải đơn hàng. Vui lòng kiểm tra ID khách hàng và máy chủ!</p>`;
+                    console.error("Lỗi khi tải đơn hàng:", error);
+                }
+            } else if (section === 'product') {
+                content.innerHTML = `<h2>Trang sản phẩm</h2><p>Chức năng hiển thị sản phẩm sẽ được cập nhật.</p>`;
+            } else if (section === 'employee') {
+                content.innerHTML = `<h2>Trang nhân viên</h2><p>Chức năng hiển thị nhân viên sẽ được cập nhật.</p>`;
+            } else if (section === 'stats') {
+                content.innerHTML = `<h2>Trang thống kê</h2><p>Chức năng thống kê sẽ được cập nhật.</p>`;
+            }
+        }
+    </script>
+</body>
+</html>
+
