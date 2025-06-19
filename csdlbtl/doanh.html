@@ -1,0 +1,283 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Quản lý cửa hàng nước hoa</title>
+  <style>
+    body { font-family: Arial, sans-serif; margin: 0; padding: 0; display: flex; }
+    .sidebar {
+      width: 200px; background: #333; color: white; min-height: 100vh;
+      display: flex; flex-direction: column; padding: 10px;
+    }
+    .sidebar a {
+      color: white; text-decoration: none; padding: 10px; margin-bottom: 5px;
+      border-radius: 4px; display: block;
+    }
+    .sidebar a.active, .sidebar a:hover { background: #555; }
+    .main-content { flex-grow: 1; padding: 20px; }
+    table { border-collapse: collapse; width: 100%; }
+    th, td { border: 1px solid #ccc; padding: 8px; text-align: left; }
+    button { margin-right: 5px; padding: 5px 10px; cursor: pointer; }
+    #form-container {
+      margin-top: 20px; padding: 10px; border: 1px solid #ccc;
+      border-radius: 5px; max-width: 500px;
+    }
+    label { display: block; margin-bottom: 8px; }
+    input[type="text"], input[type="email"] {
+      width: 100%; padding: 6px; box-sizing: border-box;
+    }
+  </style>
+</head>
+<body>
+  <div class="sidebar">
+    <a href="#" class="active" data-section="customer">Khách hàng</a>
+    <a href="#" data-section="orders">Đơn hàng</a>
+    <a href="#" data-section="product">Sản phẩm</a>
+    <a href="#" data-section="employee">Nhân viên</a>
+    <a href="#" data-section="stats">Thống kê</a>
+  </div>
+
+  <div id="main-content" class="main-content">
+    <h2>Chọn một chức năng để hiển thị dữ liệu</h2>
+  </div>
+
+  <script>
+    window.onload = function () {
+      const links = document.querySelectorAll('.sidebar a');
+      links.forEach(link => {
+        link.addEventListener('click', (event) => {
+          event.preventDefault();
+          links.forEach(l => l.classList.remove('active'));
+          link.classList.add('active');
+          const section = link.dataset.section;
+          if (section) loadSection(section);
+        });
+      });
+      loadSection('customer');
+    };
+
+    async function loadSection(section) {
+      const content = document.getElementById('main-content');
+      content.innerHTML = '';
+
+      if (section === 'customer') {
+        try {
+          const res = await fetch('http://127.0.0.1:8000/customer/');
+          if (!res.ok) throw new Error();
+          const data = await res.json();
+
+          // Chuyển đổi dữ liệu từ backend sang frontend
+          const customers = data.map(cus => ({
+            id: cus.Customer_id,
+            ma_khach_hang: `KH${cus.Customer_id.toString().padStart(3, '0')}`,
+            ten: cus.name,
+            email: cus.email || '',
+            so_dien_thoai: cus.Phone_number || '',
+            dia_chi: cus.address || ''
+          }));
+
+          let html = `
+            <h2>Danh sách khách hàng</h2>
+            <button id="addCustomerBtn">Thêm khách hàng</button>
+            <table>
+              <thead>
+                <tr>
+                  <th>ID</th>
+                  <th>Mã KH</th>
+                  <th>Tên</th>
+                  <th>Email</th>
+                  <th>Điện thoại</th>
+                  <th>Địa chỉ</th>
+                  <th>Hành động</th>
+                </tr>
+              </thead>
+              <tbody>
+          `;
+
+          customers.forEach(cus => {
+            html += `
+              <tr>
+                <td>${cus.id}</td>
+                <td>${cus.ma_khach_hang}</td>
+                <td>${cus.ten}</td>
+                <td>${cus.email}</td>
+                <td>${cus.so_dien_thoai}</td>
+                <td>${cus.dia_chi}</td>
+                <td>
+                  <button class="edit-btn" data-id="${cus.id}">Sửa</button>
+                  <button class="delete-btn" data-id="${cus.id}">Xóa</button>
+                </td>
+              </tr>
+            `;
+          });
+
+          html += `
+              </tbody>
+            </table>
+            <div id="form-container"></div>
+          `;
+
+          content.innerHTML = html;
+
+          document.getElementById('addCustomerBtn').onclick = showAddForm;
+
+          document.querySelectorAll('.edit-btn').forEach(btn => {
+            btn.onclick = () => {
+              const id = btn.dataset.id;
+              showEditForm(id);
+            };
+          });
+
+          document.querySelectorAll('.delete-btn').forEach(btn => {
+            btn.onclick = async () => {
+              const id = btn.dataset.id;
+              if (confirm(`Bạn có chắc chắn muốn xóa khách hàng ID ${id}?`)) {
+                try {
+                  const res = await fetch(`http://127.0.0.1:8000/customer/${id}`, {
+                    method: 'DELETE'
+                  });
+                  if (!res.ok) throw new Error();
+                  alert('Xóa khách hàng thành công!');
+                  loadSection('customer');
+                } catch (error) {
+                  alert('Lỗi khi xóa khách hàng!');
+                }
+              }
+            };
+          });
+
+        } catch {
+          content.innerHTML = `<p style="color:red;">Không thể tải danh sách khách hàng.</p>`;
+        }
+      } else {
+        content.innerHTML = `<h2>Chức năng "${section}" đang được phát triển.</h2>`;
+      }
+    }
+
+    function getNextCustomerCode(customers) {
+      let max = 0;
+      customers.forEach(cus => {
+        const match = (cus.ma_khach_hang || '').match(/^KH(\d+)$/i);
+        if (match) {
+          const num = parseInt(match[1], 10);
+          if (num > max) max = num;
+        }
+      });
+      const nextNum = (max + 1).toString().padStart(3, '0');
+      return `KH${nextNum}`;
+    }
+
+    function showAddForm() {
+      fetch('http://127.0.0.1:8000/customer/')
+        .then(res => res.json())
+        .then(data => {
+          const nextCode = getNextCustomerCode(data);
+          const formContainer = document.getElementById('form-container');
+          formContainer.innerHTML = `
+            <h3>Thêm khách hàng mới</h3>
+            <form id="customerForm">
+              <label>Mã KH: <input type="text" name="ma_khach_hang" value="${nextCode}" readonly style="background:#eee;"></label>
+              <label>Tên: <input type="text" name="ten" required></label>
+              <label>Email: <input type="email" name="email"></label>
+              <label>Điện thoại: <input type="text" name="so_dien_thoai"></label>
+              <label>Địa chỉ: <input type="text" name="dia_chi"></label>
+              <button type="submit">Lưu</button>
+              <button type="button" id="cancelBtn">Hủy</button>
+            </form>
+          `;
+
+          document.getElementById('cancelBtn').onclick = () => {
+            formContainer.innerHTML = '';
+          };
+
+          document.getElementById('customerForm').onsubmit = async (e) => {
+            e.preventDefault();
+            const formData = new FormData(e.target);
+            const payload = {};
+            formData.forEach((value, key) => { payload[key] = value });
+
+            try {
+              const res = await fetch('http://127.0.0.1:8000/customer/', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify(payload)
+              });
+              if (!res.ok) throw new Error();
+              alert('Thêm khách hàng thành công!');
+              formContainer.innerHTML = '';
+              loadSection('customer');
+            } catch {
+              alert('Có lỗi khi thêm khách hàng!');
+            }
+          };
+        });
+    }
+
+    async function showEditForm(id) {
+      const formContainer = document.getElementById('form-container');
+      try {
+        const res = await fetch(`http://127.0.0.1:8000/customer/${id}`);
+        if (!res.ok) throw new Error();
+        const cus = await res.json();
+
+        // Chuyển đổi dữ liệu từ backend sang frontend
+        const ma_khach_hang = `KH${cus.Customer_id.toString().padStart(3, '0')}`;
+        const ten = cus.name || '';
+        const email = cus.email || '';
+        const so_dien_thoai = cus.Phone_number || '';
+        const dia_chi = cus.address || '';
+
+        formContainer.innerHTML = `
+          <h3>Sửa khách hàng ID ${id}</h3>
+          <form id="customerForm">
+            <label>Mã KH: <input type="text" name="ma_khach_hang" value="${ma_khach_hang}" readonly style="background:#eee;"></label>
+            <label>Tên: <input type="text" name="ten" required value="${ten}"></label>
+            <label>Email: <input type="email" name="email" value="${email}"></label>
+            <label>Điện thoại: <input type="text" name="so_dien_thoai" value="${so_dien_thoai}"></label>
+            <label>Địa chỉ: <input type="text" name="dia_chi" value="${dia_chi}"></label>
+            <button type="submit">Lưu</button>
+            <button type="button" id="cancelBtn">Hủy</button>
+          </form>
+        `;
+
+        document.getElementById('cancelBtn').onclick = () => {
+          formContainer.innerHTML = '';
+        };
+
+        document.getElementById('customerForm').onsubmit = async (e) => {
+          e.preventDefault();
+          const formData = new FormData(e.target);
+          // Map lại dữ liệu cho đúng backend
+          const payload = {
+            First_name: '',
+            Last_name: '',
+            name: formData.get('ten'),
+            Phone_number: formData.get('so_dien_thoai'),
+            email: formData.get('email'),
+            address: formData.get('dia_chi')
+          };
+
+          try {
+            const res = await fetch(`http://127.0.0.1:8000/customer/${id}`, {
+              method: 'PUT',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify(payload)
+            });
+            if (!res.ok) throw new Error();
+            alert('Cập nhật thành công!');
+            formContainer.innerHTML = '';
+            loadSection('customer');
+          } catch {
+            alert('Lỗi khi cập nhật!');
+          }
+        };
+
+      } catch {
+        alert('Không tìm thấy khách hàng!');
+      }
+    }
+  </script>
+</body>
+</html>
+
